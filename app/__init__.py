@@ -1,0 +1,1 @@
+"""User architecture model package."""

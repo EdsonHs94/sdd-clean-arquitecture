@@ -1,0 +1,79 @@
+# Dummy credentials for disposable local development only.
+x-api-environment: &api-environment
+  DATABASE_URL: postgresql+asyncpg://sdd:sdd-local-only@db:5432/sdd
+  JWT_SECRET: local-only-dummy-signing-secret-at-least-32-bytes
+  S3_BUCKET: sdd-local-private
+  AWS_REGION: us-east-1
+  S3_ENDPOINT_URL: http://s3:9000
+  AWS_ACCESS_KEY_ID: sdd-local
+  AWS_SECRET_ACCESS_KEY: sdd-local-only-password
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sdd
+      POSTGRES_PASSWORD: sdd-local-only
+      POSTGRES_DB: sdd
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sdd -d sdd"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  s3:
+    build:
+      context: .
+      target: local-s3
+    ports:
+      - "127.0.0.1:${S3_PORT:-59000}:9000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 9000), timeout=2).close()"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  bucket-init:
+    build:
+      context: .
+      target: api
+    environment: *api-environment
+    command: ["python", "scripts/init_local_bucket.py"]
+    depends_on:
+      s3:
+        condition: service_healthy
+
+  migrate:
+    build:
+      context: .
+      target: api
+    environment: *api-environment
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      target: api
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      bucket-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=2).close()"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres_data:

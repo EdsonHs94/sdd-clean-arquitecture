@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "user-architecture-model"
+version = "0.1.0"
+description = "A Python backend architecture learning project"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.15,<2",
+    "argon2-cffi>=23.1,<26",
+    "asyncpg>=0.30,<1",
+    "boto3>=1.37,<2",
+    "email-validator>=2.2,<3",
+    "fastapi>=0.115,<1",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.8,<3",
+    "pyjwt>=2.10,<3",
+    "python-multipart>=0.0.20,<1",
+    "sqlalchemy[asyncio]>=2.0,<3",
+    "uvicorn>=0.34,<1",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28,<1",
+    "moto[server]>=5,<6",
+    "pytest>=8.3,<10",
+    "pytest-asyncio>=1.0,<2",
+    "ruff>=0.11,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--strict-config --strict-markers"
+markers = ["integration: requires explicitly configured disposable external services"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
