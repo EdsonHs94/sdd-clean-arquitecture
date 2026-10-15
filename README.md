@@ -4,7 +4,8 @@ A learning project exploring production-oriented Python backend design with
 FastAPI, pragmatic Clean / Hexagonal Architecture, SOLID, TDD, and Spec-Driven
 Development.
 
-The project source of truth is `docs/`. Workflow prompts live in `prompts/`,
+The original implementation is documented in `docs/`; new features use their
+approved OpenSpec change artifacts. Workflow prompts live in `prompts/`,
 architecture guidance in `AGENTS.md`, application code in `app/`, and tests in
 `tests/`.
 
@@ -133,6 +134,11 @@ The local emulator verifies application privacy behavior, not live AWS policies.
 | GET /files | 200 | Owned file metadata list |
 | GET /files/{id} | 200 | Owned file metadata |
 | DELETE /files/{id} | 204 | Empty response |
+| POST /notes | 201 | JSON title and body; returns the private note |
+| GET /notes | 200 | Owned notes, including content, ordered by creation time and UUID |
+| GET /notes/{id} | 200 | Owned note |
+| PATCH /notes/{id} | 200 | JSON title, body, or both; returns the updated note |
+| DELETE /notes/{id} | 204 | Empty response; repeating the deletion returns 404 |
 
 All routes except registration/login require `Authorization: Bearer <access_token>`.
 File ownership comes from that token; clients cannot select an owner, object key,
@@ -176,3 +182,32 @@ remain deployment responsibilities. Parser bounds depend on the locked framework
 version; retain the upload regression suite when upgrading it.
 
 Architecture and security review evidence is recorded in `docs/tasks.md`.
+
+## Private notes
+
+The feature contract and execution evidence live in
+`openspec/changes/add-private-notes/`. Notes belong to the authenticated user and
+are independent of files and S3 operations. Missing and other-user notes both
+return `404` with `{"detail":"Note not found"}`.
+
+Creating a note requires string fields `title` and `body`. The title is stripped
+of surrounding whitespace and must contain 1–200 characters; duplicate titles
+are allowed. Body text may be empty and contains at most 10,000 characters,
+preserving spaces and newlines. Lengths count Unicode code points; text is not
+rendered as HTML or Markdown. Unknown JSON fields, null values and non-string
+values return 422. Owner, UUID and timestamps are assigned by the server.
+
+PATCH requires at least one field, preserves omitted fields and rejects an entire
+update if any submitted field is invalid. Concurrent edits to distinct fields
+are preserved; the last database write to the same field wins. There are no
+versions or ETags. `created_at` stays fixed and `updated_at` is reassigned on every
+successful edit, even if values repeat; it is not a concurrency version.
+
+Responses include only `id`, `title`, `body`, `created_at` and `updated_at`, with
+UTC ISO 8601 timestamps. Listing returns all owned notes, without pagination,
+ordered by `created_at` then UUID ascending; an empty listing is `[]`.
+
+Apply `alembic upgrade head` with `DATABASE_URL` as documented above before using
+notes. Revision `0002` adds only the notes table and its constraints/index.
+Downgrading to `0001` removes all notes while retaining users and files; stop the
+notes-enabled app before downgrading. Startup never applies migrations.

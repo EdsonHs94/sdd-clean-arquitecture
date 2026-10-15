@@ -1,4 +1,4 @@
-"""Service-free notes HTTP contracts; bootstrap composition belongs to Lead."""
+"""Service-free notes HTTP contracts using the composed application."""
 
 import asyncio
 from datetime import datetime, timedelta
@@ -11,7 +11,6 @@ import pytest
 from app.application.errors import DependencyUnavailable
 from app.infrastructure.security.tokens import JwtTokenService
 from app.presentation.dependencies import get_note_repository, get_token_service
-from app.presentation.routers.notes import router
 from tests.api.helpers import client_for
 from tests.api.test_acceptance import NOW, SECRET, VARIANTS, FrozenDateTime, header_for
 from tests.unit.application.fakes import FakeNoteRepository, make_note
@@ -30,8 +29,6 @@ OPERATIONS = ("add", "list_by_owner", "get_owned", "update_owned", "delete_owned
 @pytest.fixture
 def note_context(api_context, file_context):
     app = api_context[0]
-    # Integration 5.1: remove this inclusion when bootstrap registers the router.
-    app.include_router(router)
     repo = FakeNoteRepository()
     app.dependency_overrides[get_note_repository] = lambda: repo
     return repo, file_context[1]
