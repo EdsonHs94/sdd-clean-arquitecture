@@ -119,3 +119,12 @@ After implementation:
 - verify acceptance criteria
 - verify dependency boundaries
 - report any deviation from the specification
+
+## OpenSpec feature changes
+
+- docs/ describes the original SDD implementation.
+- New features use approved OpenSpec change artifacts.
+- Reuse existing architectural conventions.
+- Resolve conflicts between new specifications and
+  existing architecture before implementation.
+- Do not edit historical SDD tasks for new features.
