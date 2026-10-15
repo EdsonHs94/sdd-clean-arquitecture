@@ -4,14 +4,37 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import UUID
 
-from app.domain.errors import InvalidFileData, InvalidUserData
+from app.domain.errors import InvalidFileData, InvalidNoteData, InvalidUserData
 from app.domain.validation import (
     normalize_content_type,
     normalize_email,
     validate_file_size,
     validate_filename,
     validate_name,
+    validate_note_body,
+    validate_note_title,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class Note:
+    id: UUID
+    user_id: UUID = field(repr=False)
+    title: str
+    body: str = field(repr=False)
+    created_at: datetime
+    updated_at: datetime
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.id, UUID) or not isinstance(self.user_id, UUID):
+            raise InvalidNoteData("Note and owner IDs must be UUIDs")
+        for name in ("created_at", "updated_at"):
+            value = getattr(self, name)
+            if not isinstance(value, datetime) or value.utcoffset() is None:
+                raise InvalidNoteData("Note timestamps must be timezone-aware")
+            object.__setattr__(self, name, value.astimezone(UTC))
+        object.__setattr__(self, "title", validate_note_title(self.title))
+        object.__setattr__(self, "body", validate_note_body(self.body))
 
 
 @dataclass(frozen=True, slots=True)

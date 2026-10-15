@@ -11,8 +11,9 @@ from app.application.errors import (
     FileNotFound,
     InvalidCredentials,
     NotAuthenticated,
+    NoteNotFound,
 )
-from app.domain.errors import FileTooLarge, InvalidFileData, InvalidUserData
+from app.domain.errors import FileTooLarge, InvalidFileData, InvalidNoteData, InvalidUserData
 
 
 async def application_error(request: Request, error: Exception) -> JSONResponse:
@@ -23,6 +24,7 @@ async def application_error(request: Request, error: Exception) -> JSONResponse:
         DependencyUnavailable: 503,
         FileTooLarge: 413,
         FileNotFound: 404,
+        NoteNotFound: 404,
     }
     status = statuses[type(error)]
     headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
@@ -41,7 +43,7 @@ async def validation_error(request: Request, error: RequestValidationError) -> J
 
 
 async def domain_validation_error(
-    request: Request, error: InvalidUserData | InvalidFileData
+    request: Request, error: InvalidUserData | InvalidFileData | InvalidNoteData
 ) -> JSONResponse:
     return JSONResponse(
         status_code=422,
@@ -90,9 +92,11 @@ def install_error_handlers(app: FastAPI) -> None:
         DependencyUnavailable,
         FileTooLarge,
         FileNotFound,
+        NoteNotFound,
     ):
         app.add_exception_handler(exception, application_error)
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_exception_handler(InvalidUserData, domain_validation_error)
     app.add_exception_handler(InvalidFileData, domain_validation_error)
+    app.add_exception_handler(InvalidNoteData, domain_validation_error)
     app.add_exception_handler(Exception, unexpected_error)

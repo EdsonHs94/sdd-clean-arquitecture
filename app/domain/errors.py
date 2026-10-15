@@ -5,6 +5,10 @@ class InvalidUserData(ValueError):
     """User input violates a domain rule."""
 
 
+class InvalidNoteData(ValueError):
+    """Note input violates a domain rule."""
+
+
 class InvalidFileData(ValueError):
     """File input violates a domain rule."""
 

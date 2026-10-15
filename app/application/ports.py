@@ -1,10 +1,32 @@
 """External capabilities required by the application."""
 
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from app.application.dto import TokenResult
-from app.domain.entities import File, User
+from app.application.dto import NotePatch, TokenResult
+from app.domain.entities import File, Note, User
+
+
+class NoteRepository(Protocol):
+    """Owner-scoped persistence; writes commit before return or roll back on failure.
+
+    Operational failures raise DependencyUnavailable. Missing and foreign rows are
+    indistinguishable. Update changes only present fields and updated_at, preserving
+    concurrent edits to omitted fields; None denotes an absent owned row.
+    """
+
+    async def add(self, note: Note) -> None: ...
+
+    async def list_by_owner(self, user_id: UUID) -> list[Note]: ...
+
+    async def get_owned(self, note_id: UUID, user_id: UUID) -> Note | None: ...
+
+    async def update_owned(
+        self, note_id: UUID, user_id: UUID, changes: NotePatch, updated_at: datetime
+    ) -> Note | None: ...
+
+    async def delete_owned(self, note_id: UUID, user_id: UUID) -> bool: ...
 
 
 class UserRepository(Protocol):

@@ -1,6 +1,11 @@
 """Application failures independent of transport and vendor exceptions."""
 
 
+class NoteNotFound(Exception):
+    def __init__(self) -> None:
+        super().__init__("Note not found")
+
+
 class EmailAlreadyRegistered(Exception):
     def __init__(self) -> None:
         super().__init__("Email already registered")

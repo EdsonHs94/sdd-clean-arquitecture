@@ -4,7 +4,19 @@ from unicodedata import category
 
 from email_validator import EmailNotValidError, validate_email
 
-from app.domain.errors import FileTooLarge, InvalidFileData, InvalidUserData
+from app.domain.errors import FileTooLarge, InvalidFileData, InvalidNoteData, InvalidUserData
+
+
+def validate_note_title(title: str) -> str:
+    if not isinstance(title, str) or not 1 <= len(title.strip()) <= 200:
+        raise InvalidNoteData("Title must contain 1–200 characters")
+    return title.strip()
+
+
+def validate_note_body(body: str) -> str:
+    if not isinstance(body, str) or len(body) > 10_000:
+        raise InvalidNoteData("Body must contain at most 10000 characters")
+    return body
 
 
 def validate_name(name: str) -> str:
