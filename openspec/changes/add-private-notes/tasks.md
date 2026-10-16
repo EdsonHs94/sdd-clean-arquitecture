@@ -74,7 +74,7 @@ Este grupo puede ejecutarse en paralelo con el grupo 3, sin esperar fake, casos 
 ## 7. Lead: corrección de texto aprobada tras revisión
 
 - [x] 7.1 [Depende de 6.1 y autorización recibida] Aplicar la exclusión de NUL y sustitutos aislados con Superpowers TDD después de actualizar proposal/spec/design. Verificación: RED de dominio y POST/PATCH con escapes JSON reales, GREEN sin operaciones de escritura ni cambios de campos/fechas ante rechazo; conservar emojis directos y pares JSON válidos; suite completa sin servicios, arquitectura, Ruff, formato y OpenSpec strict correctos. Documentar la regla en README; Docker sigue aplazado.
-- [ ] 7.2 [Depende de 7.1] Entregar la revisión corregida a la sesión independiente `notes-reviewer` mediante Herdr, con checkout actualizado y sin escrituras del reviewer. Verificación: informe que cierre el P2 o describa hallazgos pendientes; registrar evidencia y conservar explícitamente pendientes las pruebas con PostgreSQL/S3 y el cierre global 6.2.
+- [x] 7.2 [Depende de 7.1] Entregar la revisión corregida a la sesión independiente `notes-reviewer` mediante Herdr, con checkout actualizado y sin escrituras del reviewer. Verificación: informe que cierre el P2 o describa hallazgos pendientes; registrar evidencia y conservar explícitamente pendientes las pruebas con PostgreSQL/S3 y el cierre global 6.2.
 
 ## Workflow follow-up
 
@@ -118,3 +118,4 @@ Este grupo puede ejecutarse en paralelo con el grupo 3, sin esperar fake, casos 
 - 5.1: Entregas API y persistencia integradas; 6 pruebas de composición y 329 casos de API/aplicación correctos (335 total). Bootstrap registra fábrica/router; OpenAPI contiene las cinco operaciones y fixture sin registro duplicado. README y exclusión de worktrees documentadas.
 - 6.1: Reviewer independiente notes-reviewer en w7:p8, checkout detached 28306a6, revisó a534311..28306a6 sin escrituras. Hallazgo P2: validadores aceptan NUL y surrogates aislados, causando errores de servidor. Corrección requiere precisar el contrato; aceptación con servicios sigue pendiente.
 - 7.1: RED: 30 fallos y 4 controles Unicode válidos correctos. GREEN: 34 regresiones de dominio/POST/PATCH correctas; suite sin servicios 1076 passed, 64 deselected. Arquitectura 42 passed; Ruff lint/formato, diff y OpenSpec strict correctos. Contrato y README actualizados antes de cerrar el ajuste; ningún servicio iniciado.
+- 7.2: Reviewer notes-reviewer revisó 961d6ad..f7efc62 desde su checkout independiente y cerró el P2 sin nuevos hallazgos. Ejecutó por su cuenta 34 regresiones focales: 34 passed. Sin escrituras ni servicios. Aceptación PostgreSQL/S3 y cierre 6.2 permanecen pendientes.
