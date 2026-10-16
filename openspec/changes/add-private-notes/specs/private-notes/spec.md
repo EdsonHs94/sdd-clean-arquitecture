@@ -33,7 +33,7 @@ El sistema SHALL derivar el propietario únicamente del usuario autenticado y ge
 - **THEN** responde `422` sin crear ni modificar notas
 
 ### Requirement: Validación del título
-El sistema SHALL exigir un título de tipo string, quitar sus espacios exteriores y aceptar entre 1 y 200 caracteres después de esa normalización. SHALL permitir títulos repetidos para un mismo propietario. Un título inválido SHALL producir `422` sin mutación.
+El sistema SHALL exigir un título de tipo string con Unicode admitido, quitar sus espacios exteriores y aceptar entre 1 y 200 caracteres después de esa normalización. SHALL permitir títulos repetidos para un mismo propietario. Un título inválido SHALL producir `422` sin mutación.
 
 #### Scenario: Normalización y límites inclusivos
 - **WHEN** se crea o edita una nota con un título que, después de quitar espacios exteriores, contiene entre 1 y 200 caracteres
@@ -48,7 +48,7 @@ El sistema SHALL exigir un título de tipo string, quitar sus espacios exteriore
 - **THEN** ambas notas pueden conservar ese título y se distinguen por sus UUID
 
 ### Requirement: Validación del contenido
-El sistema SHALL exigir un contenido `body` de tipo string y aceptar de 0 a 10 000 caracteres, conservando exactamente espacios y saltos de línea. El contenido es texto plano. Un contenido inválido SHALL producir `422` sin mutación.
+El sistema SHALL exigir un contenido `body` de tipo string con Unicode admitido y aceptar de 0 a 10 000 caracteres, conservando exactamente espacios y saltos de línea. El contenido es texto plano. Un contenido inválido SHALL producir `422` sin mutación.
 
 #### Scenario: Contenido vacío o en el límite
 - **WHEN** se crea o edita una nota con `body` igual a `""` o con exactamente 10 000 caracteres
@@ -61,6 +61,17 @@ El sistema SHALL exigir un contenido `body` de tipo string y aceptar de 0 a 10 0
 #### Scenario: Contenido excesivo
 - **WHEN** el contenido contiene 10 001 caracteres
 - **THEN** responde `422` y conserva el estado anterior
+
+### Requirement: Texto Unicode admitido
+El sistema SHALL rechazar con `422` NUL (`U+0000`) y sustitutos Unicode aislados (`U+D800`–`U+DFFF`) en título o contenido, antes de persistir. SHALL conservar el Unicode válido sin reemplazos ni eliminación silenciosa de caracteres, incluidos emojis representados por pares de sustitutos válidos en JSON.
+
+#### Scenario: Texto no admitido al crear o editar
+- **WHEN** un POST o PATCH envía título o contenido con NUL o un sustituto Unicode aislado
+- **THEN** responde `422` sanitizado sin invocar escrituras ni cambiar campos o fechas de notas existentes, aunque el otro campo enviado sea válido
+
+#### Scenario: Emoji válido en JSON
+- **WHEN** un POST o PATCH envía un emoji como carácter Unicode o como par de sustitutos válido en JSON dentro de los límites acordados
+- **THEN** acepta la operación y devuelve el emoji intacto en título y contenido
 
 ### Requirement: Cuerpos JSON estrictos
 El sistema SHALL aceptar únicamente objetos JSON con `title` y `body` como campos posibles. SHALL rechazar campos desconocidos, valores `null` y valores no string para estos campos. Los errores de validación SHALL seguir el formato sanitizado existente de `422` con entradas `loc`, `msg` y `type`.

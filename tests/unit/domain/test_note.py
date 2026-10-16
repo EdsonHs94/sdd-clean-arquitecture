@@ -51,6 +51,23 @@ def test_note_rejects_invalid_body(body):
         make_note(body=body)
 
 
+@pytest.mark.parametrize("field", ["title", "body"])
+@pytest.mark.parametrize(
+    "invalid",
+    ["\x00", "\ud800", "\udbff", "\udc00", "\udfff"],
+    ids=[
+        "nul",
+        "first-high-surrogate",
+        "last-high-surrogate",
+        "first-low-surrogate",
+        "last-low-surrogate",
+    ],
+)
+def test_note_rejects_nul_and_isolated_surrogates(field, invalid):
+    with pytest.raises(errors.InvalidNoteData):
+        make_note(**{field: "private-sentinel" + invalid})
+
+
 @pytest.mark.parametrize("field", ["id", "user_id"])
 def test_note_rejects_non_uuid_identity(field):
     with pytest.raises(errors.InvalidNoteData):

@@ -1,6 +1,7 @@
 """Service-free notes HTTP contracts using the composed application."""
 
 import asyncio
+import json
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
@@ -53,6 +54,62 @@ def assert_no_operations(repo):
 
 def request_body(method):
     return {"json": {"title": " Title ", "body": " body\n"}} if method in ("POST", "PATCH") else {}
+
+
+@pytest.mark.parametrize("method", ["POST", "PATCH"])
+@pytest.mark.parametrize("field", ["title", "body"])
+@pytest.mark.parametrize(
+    "invalid",
+    ["\x00", "\ud800", "\udbff", "\udc00", "\udfff"],
+    ids=[
+        "nul",
+        "first-high-surrogate",
+        "last-high-surrogate",
+        "first-low-surrogate",
+        "last-low-surrogate",
+    ],
+)
+async def test_invalid_unicode_rejected_before_writes(
+    notes_api, note_context, file_auth, method, field, invalid
+):
+    repo, _ = note_context
+    original = make_note(file_auth[0].id)
+    await repo.add(original)
+    observe_operations(repo)
+    payload = {"title": "Valid replacement", "body": "Valid replacement body"}
+    payload[field] = "private-sentinel" + invalid
+    # Send actual JSON escapes: encoding a lone surrogate as UTF-8 in the client
+    # would fail before reaching our application.
+    response = await notes_api.request(
+        method,
+        "/notes" if method == "POST" else f"/notes/{original.id}",
+        headers={**file_auth[1], "Content-Type": "application/json"},
+        content=json.dumps(payload, ensure_ascii=True).encode("ascii"),
+    )
+    assert response.status_code == 422
+    assert "private-sentinel" not in response.text
+    assert all(set(error) == {"loc", "msg", "type"} for error in response.json()["detail"])
+    assert_no_operations(repo)
+    assert await repo.list_by_owner(original.user_id) == [original]
+
+
+@pytest.mark.parametrize("method", ["POST", "PATCH"])
+@pytest.mark.parametrize("escaped", [False, True], ids=["utf8-emoji", "json-surrogate-pair"])
+async def test_valid_emoji_preserved_in_both_note_fields(
+    notes_api, note_context, file_auth, method, escaped
+):
+    original = make_note(file_auth[0].id)
+    await note_context[0].add(original)
+    payload = {"title": "🙂", "body": " 🙂\n "}
+    response = await notes_api.request(
+        method,
+        "/notes" if method == "POST" else f"/notes/{original.id}",
+        headers={**file_auth[1], "Content-Type": "application/json"},
+        content=json.dumps(payload, ensure_ascii=escaped).encode("utf-8"),
+    )
+    assert response.status_code == (201 if method == "POST" else 200)
+    assert response.json()["title"] == "🙂"
+    assert response.json()["body"] == " 🙂\n "
 
 
 async def test_create_read_list_patch_delete_lifecycle(notes_api, note_context, file_auth):

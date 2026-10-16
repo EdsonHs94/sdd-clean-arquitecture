@@ -194,7 +194,10 @@ Creating a note requires string fields `title` and `body`. The title is stripped
 of surrounding whitespace and must contain 1–200 characters; duplicate titles
 are allowed. Body text may be empty and contains at most 10,000 characters,
 preserving spaces and newlines. Lengths count Unicode code points; text is not
-rendered as HTML or Markdown. Unknown JSON fields, null values and non-string
+rendered as HTML or Markdown. NUL (`U+0000`) and isolated Unicode surrogates
+(`U+D800`–`U+DFFF`) return 422 before persistence. Valid Unicode, including emojis
+encoded as valid JSON surrogate pairs, is preserved without replacement.
+Unknown JSON fields, null values and non-string
 values return 422. Owner, UUID and timestamps are assigned by the server.
 
 PATCH requires at least one field, preserves omitted fields and rejects an entire

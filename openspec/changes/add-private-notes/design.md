@@ -28,6 +28,10 @@ Se usarán `NoteResult` y `NotePatch` en `app/application/dto.py`, `NoteNotFound
 
 Detalle de implementación de límites: contar caracteres con la longitud de strings de Python, sin normalización Unicode; aplicar `str.strip()` solo al título. El contenido se conserva exactamente. No se añade unicidad del título. Son concreciones técnicas de las reglas acordadas.
 
+Tras la revisión P2, el usuario aprobó excluir NUL (`U+0000`) y sustitutos Unicode aislados (`U+D800`–`U+DFFF`). Los validadores puros de título y contenido rechazarán esos valores mediante `InvalidNoteData`, sin importar PostgreSQL ni tipos de infraestructura. Una comprobación compartida de texto evita diferencias entre ambos campos. Entidad y `NotePatch` reutilizan esos validadores; la presentación mantiene su traducción existente a `422` sanitizado. No se requiere otra migración ni cambios al puerto.
+
+La causa era la diferencia entre un string de Python aceptado por longitud y texto serializable/persistible: NUL llega a PostgreSQL y los sustitutos aislados fallan al codificar UTF-8. No se corrige cambiando un `503` o `500` a posteriori; se rechaza la entrada antes de escribir. Los pares de sustitutos válidos en JSON se decodifican como un único carácter Unicode y siguen admitidos. Las pruebas enviarán escapes JSON como bytes ASCII para reproducir sustitutos aislados sin que el cliente de pruebas falle primero.
+
 | Operación async de NoteRepository | Resultado y semántica |
 | --- | --- |
 | `add(note: Note)` | `None`; confirma la inserción antes de retornar |

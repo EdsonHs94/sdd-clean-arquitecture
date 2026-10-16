@@ -8,6 +8,7 @@ Los usuarios necesitan guardar apuntes privados de texto junto a las capacidades
 
 - Incorporar notas privadas: crear, listar, consultar, editar parcialmente y eliminar mediante `/notes` y `/notes/{note_id}`.
 - Validar título de 1–200 caracteres después de quitar espacios exteriores y contenido de hasta 10 000 caracteres, incluido contenido vacío; permitir títulos repetidos.
+- Aceptar Unicode válido y rechazar con `422` NUL (`U+0000`) y sustitutos Unicode aislados, sin eliminar ni reemplazar caracteres silenciosamente.
 - Exponer UUID, título, contenido y fechas UTC; obtener el propietario exclusivamente de la autenticación existente.
 - Conservar cambios concurrentes sobre campos distintos y aplicar la última escritura sobre cada campo enviado, sin versiones ni ETags.
 - Añadir persistencia PostgreSQL, migración Alembic y pruebas de comportamiento, aislamiento y concurrencia.
