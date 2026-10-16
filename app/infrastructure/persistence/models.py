@@ -48,3 +48,21 @@ class FileModel(Base):
     content_type: Mapped[str] = mapped_column(Text, nullable=False)
     size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class NoteModel(Base):
+    __tablename__ = "notes"
+    __table_args__ = (
+        CheckConstraint("char_length(title) BETWEEN 1 AND 200", name="ck_notes_title_length"),
+        CheckConstraint("char_length(body) <= 10000", name="ck_notes_body_length"),
+        Index("ix_notes_owner_created_id", "user_id", "created_at", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

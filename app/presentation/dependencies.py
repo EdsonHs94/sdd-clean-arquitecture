@@ -10,16 +10,22 @@ from app.application.errors import NotAuthenticated
 from app.application.ports import (
     FileRepository,
     FileStorage,
+    NoteRepository,
     PasswordHasher,
     TokenService,
     UserRepository,
 )
 from app.application.use_cases.authenticate_user import AuthenticateUser
+from app.application.use_cases.create_note import CreateNote
 from app.application.use_cases.delete_user_file import DeleteUserFile
+from app.application.use_cases.delete_user_note import DeleteUserNote
 from app.application.use_cases.get_user_file import GetUserFile
+from app.application.use_cases.get_user_note import GetUserNote
 from app.application.use_cases.list_user_files import ListUserFiles
+from app.application.use_cases.list_user_notes import ListUserNotes
 from app.application.use_cases.login_user import LoginUser
 from app.application.use_cases.register_user import RegisterUser
+from app.application.use_cases.update_user_note import UpdateUserNote
 from app.application.use_cases.upload_file import UploadFile
 from app.domain.entities import User
 
@@ -101,3 +107,38 @@ def get_delete_user_file(
     storage: Annotated[FileStorage, Depends(get_file_storage)],
 ) -> DeleteUserFile:
     return DeleteUserFile(repository, storage)
+
+
+async def get_note_repository(request: Request) -> AsyncIterator[NoteRepository]:
+    async with request.app.state.database.session() as session:
+        yield request.app.state.note_repository_factory(session)
+
+
+def get_create_note(
+    repository: Annotated[NoteRepository, Depends(get_note_repository)],
+) -> CreateNote:
+    return CreateNote(repository)
+
+
+def get_list_user_notes(
+    repository: Annotated[NoteRepository, Depends(get_note_repository)],
+) -> ListUserNotes:
+    return ListUserNotes(repository)
+
+
+def get_user_note(
+    repository: Annotated[NoteRepository, Depends(get_note_repository)],
+) -> GetUserNote:
+    return GetUserNote(repository)
+
+
+def get_update_user_note(
+    repository: Annotated[NoteRepository, Depends(get_note_repository)],
+) -> UpdateUserNote:
+    return UpdateUserNote(repository)
+
+
+def get_delete_user_note(
+    repository: Annotated[NoteRepository, Depends(get_note_repository)],
+) -> DeleteUserNote:
+    return DeleteUserNote(repository)

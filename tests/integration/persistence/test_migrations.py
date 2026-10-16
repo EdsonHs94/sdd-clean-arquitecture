@@ -16,8 +16,13 @@ async def test_blank_upgrade_has_constraints_and_owner_listing_index(blank_datab
 
         def inspect_schema(sync):
             inspector = inspect(sync)
-            assert set(inspector.get_table_names()) == {"users", "files", "alembic_version"}
-            for table in ("users", "files"):
+            assert set(inspector.get_table_names()) == {
+                "users",
+                "files",
+                "notes",
+                "alembic_version",
+            }
+            for table in ("users", "files", "notes"):
                 assert all(not column["nullable"] for column in inspector.get_columns(table))
             assert inspector.get_pk_constraint("users")["constrained_columns"] == ["id"]
             assert inspector.get_pk_constraint("files")["constrained_columns"] == ["id"]
@@ -33,6 +38,23 @@ async def test_blank_upgrade_has_constraints_and_owner_listing_index(blank_datab
                 if i["name"] == "ix_files_owner_created_id"
             )
             assert index["column_names"] == ["user_id", "created_at", "id"]
+            assert inspector.get_pk_constraint("notes")["constrained_columns"] == ["id"]
+            assert inspector.get_unique_constraints("notes") == []
+            (note_fk,) = inspector.get_foreign_keys("notes")
+            assert note_fk["constrained_columns"] == ["user_id"]
+            assert note_fk["referred_table"] == "users"
+            assert note_fk["options"]["ondelete"] == "RESTRICT"
+            assert {check["name"] for check in inspector.get_check_constraints("notes")} == {
+                "ck_notes_title_length",
+                "ck_notes_body_length",
+            }
+            (note_index,) = inspector.get_indexes("notes")
+            assert note_index["name"] == "ix_notes_owner_created_id"
+            assert note_index["column_names"] == ["user_id", "created_at", "id"]
+            columns = {column["name"]: column for column in inspector.get_columns("notes")}
+            assert columns["title"]["type"].length == 200
+            assert columns["created_at"]["type"].timezone
+            assert columns["updated_at"]["type"].timezone
 
         await connection.run_sync(inspect_schema)
 
@@ -51,6 +73,7 @@ async def test_downgrade_then_upgrade_recreates_schema(blank_database):
         assert set(await connection.run_sync(lambda sync: inspect(sync).get_table_names())) == {
             "users",
             "files",
+            "notes",
             "alembic_version",
         }
 
@@ -85,3 +108,51 @@ def test_revision_template_renders_valid_python():
         downgrades="pass",
     )
     ast.parse(rendered)
+
+
+async def test_notes_upgrade_and_rollback_preserve_existing_users_and_files(blank_database):
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    from sqlalchemy import text
+
+    from app.domain.entities import File, Note, User
+    from app.infrastructure.persistence.file_repository import SqlAlchemyFileRepository
+    from app.infrastructure.persistence.note_repository import SqlAlchemyNoteRepository
+    from app.infrastructure.persistence.user_repository import SqlAlchemyUserRepository
+    from tests.integration.helpers import migrate
+
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    owner = User(uuid4(), "Alice", "alice@example.com", "hash", now)
+    file = File(uuid4(), owner.id, "sample.txt", "private/sample", "text/plain", 4, now)
+    note = Note(uuid4(), owner.id, "Private", "content", now, now)
+    await migrate(blank_database, "upgrade", "0001")
+    async with blank_database.session() as session:
+        await SqlAlchemyUserRepository(session).add(owner)
+        await SqlAlchemyFileRepository(session).add(file)
+
+    await migrate(blank_database, "upgrade", "head")
+    async with blank_database.session() as session:
+        assert await SqlAlchemyUserRepository(session).get_by_id(owner.id) == owner
+        assert await SqlAlchemyFileRepository(session).get_owned(file.id, owner.id) == file
+        await SqlAlchemyNoteRepository(session).add(note)
+
+    await migrate(blank_database, "downgrade", "0001")
+    async with blank_database.engine.connect() as connection:
+        assert set(await connection.run_sync(lambda sync: inspect(sync).get_table_names())) == {
+            "users",
+            "files",
+            "alembic_version",
+        }
+    async with blank_database.session() as session:
+        assert await SqlAlchemyUserRepository(session).get_by_id(owner.id) == owner
+        assert await SqlAlchemyFileRepository(session).get_owned(file.id, owner.id) == file
+
+    await migrate(blank_database, "upgrade", "head")
+    async with blank_database.session() as session:
+        assert await SqlAlchemyNoteRepository(session).list_by_owner(owner.id) == []
+        assert await SqlAlchemyUserRepository(session).get_by_id(owner.id) == owner
+        assert await SqlAlchemyFileRepository(session).get_owned(file.id, owner.id) == file
+        assert (
+            await session.execute(text("SELECT version_num FROM alembic_version"))
+        ).scalar_one() == "0002"

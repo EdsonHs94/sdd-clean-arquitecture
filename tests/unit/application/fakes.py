@@ -1,14 +1,14 @@
 """Test-only stateful dependencies; never import these into production."""
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from uuid import UUID
 
-from app.application.dto import TokenResult
+from app.application.dto import NotePatch, TokenResult
 from app.application.errors import DependencyUnavailable, EmailAlreadyRegistered, NotAuthenticated
-from app.domain.entities import File, User
+from app.domain.entities import File, Note, User
 
 
 def _fake_password_hash(password: str) -> str:
@@ -157,3 +157,60 @@ def make_file(owner, number=1, time=None):
         3,
         time or datetime(2026, 1, 1, tzinfo=UTC),
     )
+
+
+@dataclass
+class FakeNoteRepository:
+    fail_reads: bool = False
+    fail_writes: bool = False
+    _notes: dict[UUID, Note] = field(default_factory=dict, init=False, repr=False)
+
+    async def add(self, note: Note) -> None:
+        if self.fail_writes or note.id in self._notes:
+            raise DependencyUnavailable()
+        self._notes[note.id] = note
+
+    async def list_by_owner(self, user_id: UUID) -> list[Note]:
+        if self.fail_reads:
+            raise DependencyUnavailable()
+        return sorted(
+            (note for note in self._notes.values() if note.user_id == user_id),
+            key=lambda note: (note.created_at, note.id),
+        )
+
+    async def get_owned(self, note_id: UUID, user_id: UUID) -> Note | None:
+        if self.fail_reads:
+            raise DependencyUnavailable()
+        note = self._notes.get(note_id)
+        return note if note is not None and note.user_id == user_id else None
+
+    async def update_owned(
+        self, note_id: UUID, user_id: UUID, changes: NotePatch, updated_at: datetime
+    ) -> Note | None:
+        if self.fail_writes:
+            raise DependencyUnavailable()
+        note = self._notes.get(note_id)
+        if note is None or note.user_id != user_id:
+            return None
+        updated = replace(
+            note,
+            title=changes.title if changes.title is not None else note.title,
+            body=changes.body if changes.body is not None else note.body,
+            updated_at=updated_at,
+        )
+        self._notes[note_id] = updated
+        return updated
+
+    async def delete_owned(self, note_id: UUID, user_id: UUID) -> bool:
+        if self.fail_writes:
+            raise DependencyUnavailable()
+        note = self._notes.get(note_id)
+        if note is None or note.user_id != user_id:
+            return False
+        del self._notes[note_id]
+        return True
+
+
+def make_note(owner, number=1, time=None):
+    time = time or datetime(2026, 1, 1, tzinfo=UTC)
+    return Note(UUID(int=number), owner, "Sample", " original body\n", time, time)

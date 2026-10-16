@@ -4,7 +4,38 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
-from app.domain.entities import File, User
+from app.domain.entities import File, Note, User
+from app.domain.errors import InvalidNoteData
+from app.domain.validation import validate_note_body, validate_note_title
+
+
+@dataclass(frozen=True, slots=True)
+class NotePatch:
+    """None denotes omission; HTTP must reject explicit null before conversion."""
+
+    title: str | None = None
+    body: str | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if self.title is None and self.body is None:
+            raise InvalidNoteData("At least one note field is required")
+        if self.title is not None:
+            object.__setattr__(self, "title", validate_note_title(self.title))
+        if self.body is not None:
+            object.__setattr__(self, "body", validate_note_body(self.body))
+
+
+@dataclass(frozen=True, slots=True)
+class NoteResult:
+    id: UUID
+    title: str
+    body: str = field(repr=False)
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_note(cls, note: Note) -> "NoteResult":
+        return cls(note.id, note.title, note.body, note.created_at, note.updated_at)
 
 
 @dataclass(frozen=True, slots=True)

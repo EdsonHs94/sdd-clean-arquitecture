@@ -7,6 +7,7 @@ from secrets import token_urlsafe
 from fastapi import FastAPI
 
 from app.infrastructure.persistence.file_repository import SqlAlchemyFileRepository
+from app.infrastructure.persistence.note_repository import SqlAlchemyNoteRepository
 from app.infrastructure.persistence.session import Database
 from app.infrastructure.persistence.user_repository import SqlAlchemyUserRepository
 from app.infrastructure.security.passwords import Argon2PasswordHasher
@@ -14,7 +15,7 @@ from app.infrastructure.security.tokens import JwtTokenService
 from app.infrastructure.settings import Settings
 from app.infrastructure.storage.s3 import S3FileStorage, create_s3_client
 from app.presentation.error_handlers import install_error_handlers
-from app.presentation.routers import auth, files, users
+from app.presentation.routers import auth, files, notes, users
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -39,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 create_s3_client, config.aws_region, config.s3_endpoint_url
             )
             app.state.file_repository_factory = SqlAlchemyFileRepository
+            app.state.note_repository_factory = SqlAlchemyNoteRepository
             app.state.file_storage = S3FileStorage(s3_client, config.s3_bucket)
             yield
         finally:
@@ -53,4 +55,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(users.router)
     app.include_router(auth.router)
     app.include_router(files.router)
+    app.include_router(notes.router)
     return app
