@@ -185,8 +185,9 @@ Architecture and security review evidence is recorded in `docs/tasks.md`.
 
 ## Private notes
 
-The feature contract and execution evidence live in
-`openspec/changes/add-private-notes/`. Notes belong to the authenticated user and
+The feature contract lives in `openspec/specs/private-notes/spec.md`; planning and
+execution evidence are archived in
+`openspec/changes/archive/2026-10-16-add-private-notes/`. Notes belong to the authenticated user and
 are independent of files and S3 operations. Missing and other-user notes both
 return `404` with `{"detail":"Note not found"}`.
 
